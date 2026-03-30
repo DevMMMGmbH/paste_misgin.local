@@ -3,26 +3,18 @@ import SwiftUI
 
 final class PanelController {
     private var panel: ClipboardPanel?
-    private let state = PanelState()
+    let state = PanelState()
     private var previousApp: NSRunningApplication?
 
     func toggle() {
-        if panel?.isVisible == true {
-            close()
-        } else {
-            open()
-        }
+        panel?.isVisible == true ? close() : open()
     }
 
     func open() {
         previousApp = NSWorkspace.shared.frontmostApplication
-
-        state.searchText = ""
-        state.selectedIDs = []
-        state.highlightedIndex = 0
+        state.reset()
 
         if panel == nil { buildPanel() }
-
         centerOnScreen()
         panel?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -32,16 +24,13 @@ final class PanelController {
         panel?.orderOut(nil)
     }
 
-    // MARK: - Private
+    // MARK: - Build
 
     private func buildPanel() {
         let rootView = PanelView(
             state: state,
-            onPaste: { [weak self] items in self?.paste(items: items) },
-            onClose: { [weak self] in self?.close() }
+            onPaste: { [weak self] items in self?.paste(items: items) }
         )
-
-        let hosting = NSHostingController(rootView: rootView)
 
         let p = ClipboardPanel(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 480),
@@ -50,28 +39,72 @@ final class PanelController {
             defer: false
         )
         p.onEscape = { [weak self] in self?.close() }
+
+        // ← Key fix: intercept navigation keys here, BEFORE SwiftUI/AppKit first-responder chain
+        p.keyHandler = { [weak self] event -> Bool in
+            guard let self else { return false }
+            return self.handleKey(event)
+        }
+
         p.backgroundColor = .clear
         p.isOpaque = false
         p.hasShadow = true
         p.level = .floating
         p.isMovableByWindowBackground = true
         p.isReleasedWhenClosed = false
-        p.contentViewController = hosting
-
+        p.contentViewController = NSHostingController(rootView: rootView)
         self.panel = p
     }
 
-    private func centerOnScreen() {
-        let screen = NSScreen.main ?? NSScreen.screens[0]
-        let pw: CGFloat = 520
-        let ph: CGFloat = 480
-        let sx = screen.visibleFrame
-        let x = sx.minX + (sx.width - pw) / 2
-        let y = sx.minY + (sx.height - ph) / 2 + 60 // slightly above center
-        panel?.setFrame(NSRect(x: x, y: y, width: pw, height: ph), display: false)
+    // MARK: - Key Handling
+    //
+    // Called from ClipboardPanel.keyDown — runs on main thread before the
+    // event reaches any first responder (including the search text field).
+    // Return true to consume the event, false to pass it through.
+
+    private func handleKey(_ event: NSEvent) -> Bool {
+        switch event.keyCode {
+        case 125: // ↓
+            state.moveDown()
+            return true
+        case 126: // ↑
+            state.moveUp()
+            return true
+        case 49:  // Space → toggle multi-select
+            state.toggleHighlighted()
+            return true
+        case 36:  // Return → paste
+            pasteSelection()
+            return true
+        case 53:  // Esc → close
+            close()
+            return true
+        default:
+            return false // let letters/delete reach the search field
+        }
     }
 
+    private func pasteSelection() {
+        let items = state.selectedItems()
+        paste(items: items.isEmpty ? [state.highlightedItem()].compactMap { $0 } : items)
+    }
+
+    // MARK: - Layout
+
+    private func centerOnScreen() {
+        let screen = NSScreen.main ?? NSScreen.screens[0]
+        let w: CGFloat = 520, h: CGFloat = 480
+        let f = screen.visibleFrame
+        let x = f.minX + (f.width - w) / 2
+        let y = f.minY + (f.height - h) / 2 + 60
+        panel?.setFrame(NSRect(x: x, y: y, width: w, height: h), display: false)
+    }
+
+    // MARK: - Paste
+
     private func paste(items: [ClipboardItem]) {
+        guard !items.isEmpty else { return }
+
         let pb = NSPasteboard.general
         pb.clearContents()
 
@@ -86,7 +119,6 @@ final class PanelController {
 
         close()
 
-        // Restore previous app, then send ⌘V
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             self?.previousApp?.activate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -97,9 +129,9 @@ final class PanelController {
 
     private static func simulateCmdV() {
         let src = CGEventSource(stateID: .hidSystemState)
-        let vKey = CGKeyCode(0x09)
-        let dn = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: true)
-        let up = CGEvent(keyboardEventSource: src, virtualKey: vKey, keyDown: false)
+        let v = CGKeyCode(0x09)
+        let dn = CGEvent(keyboardEventSource: src, virtualKey: v, keyDown: true)
+        let up = CGEvent(keyboardEventSource: src, virtualKey: v, keyDown: false)
         dn?.flags = .maskCommand
         up?.flags = .maskCommand
         dn?.post(tap: .cghidEventTap)
@@ -107,15 +139,23 @@ final class PanelController {
     }
 }
 
-// MARK: - Custom NSPanel
+// MARK: - ClipboardPanel
 
 final class ClipboardPanel: NSPanel {
     var onEscape: (() -> Void)?
+    /// Return true to consume the event, false to pass through.
+    var keyHandler: ((NSEvent) -> Bool)?
 
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
     override func cancelOperation(_ sender: Any?) {
         onEscape?()
+    }
+
+    /// Intercept key events at the window level — before the first-responder chain.
+    override func keyDown(with event: NSEvent) {
+        if keyHandler?(event) == true { return }
+        super.keyDown(with: event)
     }
 }
