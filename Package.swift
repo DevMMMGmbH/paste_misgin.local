@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClipboardManager",
+    name: "ClipFlow",
     platforms: [.macOS(.v14)],
     targets: [
         .executableTarget(
-            name: "ClipboardManager",
+            name: "ClipFlow",
             path: "Sources/ClipboardManager"
         )
     ]

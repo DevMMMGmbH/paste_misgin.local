@@ -19,7 +19,7 @@ final class SettingsWindowController {
             backing: .buffered,
             defer: false
         )
-        w.title = "ClipboardManager – Einstellungen"
+        w.title = "ClipFlow – Einstellungen"
         w.contentViewController = hosting
         w.center()
         w.isReleasedWhenClosed = false

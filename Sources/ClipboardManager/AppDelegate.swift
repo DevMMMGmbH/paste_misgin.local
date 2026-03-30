@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let options: [String: Any] = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
         let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
         if !trusted {
-            print("⚠️  Bitte Zugriffsrechte in Systemeinstellungen → Datenschutz → Bedienungshilfen gewähren.")
+            print("⚠️  ClipFlow: Bitte Zugriffsrechte in Systemeinstellungen → Datenschutz → Bedienungshilfen gewähren.")
         }
     }
 }

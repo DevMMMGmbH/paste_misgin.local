@@ -35,7 +35,7 @@ struct SettingsView: View {
                 HStack {
                     Text("Gespeichert in")
                     Spacer()
-                    Text("~/Library/Application Support/ClipboardManager/")
+                    Text("~/Library/Application Support/ClipFlow/")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                 }

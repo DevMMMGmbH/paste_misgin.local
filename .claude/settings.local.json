@@ -17,7 +17,12 @@
       "Bash(cp -r ClipboardManager.app /Applications/)",
       "Bash(pkill -x ClipboardManager)",
       "Bash(rm -rf /Applications/ClipboardManager.app)",
-      "Bash(cp -r /Users/alexmisgin/Sites/paste_misgin.local/ClipboardManager.app /Applications/)"
+      "Bash(cp -r /Users/alexmisgin/Sites/paste_misgin.local/ClipboardManager.app /Applications/)",
+      "Bash(swift -e ':*)",
+      "Bash(pkill -x ClipFlow)",
+      "Bash(rm -rf /Applications/ClipFlow.app)",
+      "Bash(cp -r ClipFlow.app /Applications/)",
+      "Bash(open /Applications/ClipFlow.app)"
     ]
   }
 }
