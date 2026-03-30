@@ -5,8 +5,9 @@ final class ClipboardStore: ObservableObject {
     static let shared = ClipboardStore()
 
     @Published private(set) var items: [ClipboardItem] = []
-    private let maxItems = 500
     private let saveURL: URL
+
+    private var maxItems: Int { Settings.shared.maxItems }
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -17,12 +18,13 @@ final class ClipboardStore: ObservableObject {
     }
 
     func add(_ item: ClipboardItem) {
-        // Skip consecutive duplicates
-        if let first = items.first, first.text == item.text, item.text != nil { return }
+        if Settings.shared.ignoreDupes,
+           let first = items.first,
+           first.text == item.text,
+           item.text != nil { return }
+
         items.insert(item, at: 0)
-        if items.count > maxItems {
-            items = Array(items.prefix(maxItems))
-        }
+        trim()
         save()
     }
 
@@ -36,6 +38,21 @@ final class ClipboardStore: ObservableObject {
         save()
     }
 
+    /// Called when the user changes the limit in Settings.
+    func applyLimit(_ limit: Int) {
+        guard items.count > limit else { return }
+        items = Array(items.prefix(limit))
+        save()
+    }
+
+    // MARK: - Private
+
+    private func trim() {
+        if items.count > maxItems {
+            items = Array(items.prefix(maxItems))
+        }
+    }
+
     private func save() {
         if let data = try? JSONEncoder().encode(items) {
             try? data.write(to: saveURL)
@@ -47,5 +64,6 @@ final class ClipboardStore: ObservableObject {
               let loaded = try? JSONDecoder().decode([ClipboardItem].self, from: data)
         else { return }
         items = loaded
+        trim() // apply current limit in case it changed since last run
     }
 }

@@ -42,7 +42,7 @@ final class ClipboardMonitor {
             DispatchQueue.main.async {
                 ClipboardStore.shared.add(ClipboardItem(text: text, imageData: nil))
             }
-        } else if let data = pb.data(forType: .tiff) {
+        } else if Settings.shared.saveImages, let data = pb.data(forType: .tiff) {
             DispatchQueue.main.async {
                 ClipboardStore.shared.add(ClipboardItem(text: nil, imageData: data))
             }
