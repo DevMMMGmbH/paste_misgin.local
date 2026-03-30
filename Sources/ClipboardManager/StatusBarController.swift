@@ -4,6 +4,7 @@ final class StatusBarController {
     private var statusItem: NSStatusItem?
     var onToggle: (() -> Void)?
     var onClear: (() -> Void)?
+    var onSettings: (() -> Void)?
     var onQuit: (() -> Void)?
 
     func setup() {
@@ -38,6 +39,12 @@ final class StatusBarController {
         menu.addItem(.separator())
 
         menu.addItem(
+            withTitle: "Einstellungen…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        ).target = self
+
+        menu.addItem(
             withTitle: "History löschen",
             action: #selector(clearHistory),
             keyEquivalent: ""
@@ -57,6 +64,7 @@ final class StatusBarController {
     }
 
     @objc private func openPanel() { onToggle?() }
+    @objc private func openSettings() { onSettings?() }
     @objc private func clearHistory() { onClear?() }
     @objc private func quit() { onQuit?() }
 }

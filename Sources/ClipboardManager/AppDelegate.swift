@@ -3,17 +3,20 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = ClipboardMonitor.shared
     private let store = ClipboardStore.shared
+    private let settings = Settings.shared
     private let hotkey = HotkeyManager()
     private let panel = PanelController()
     private let statusBar = StatusBarController()
+    private let settingsWindow = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         checkAccessibilityPermissions()
 
         statusBar.setup()
-        statusBar.onToggle = { [weak self] in self?.panel.toggle() }
-        statusBar.onClear  = { ClipboardStore.shared.clear() }
-        statusBar.onQuit   = { NSApp.terminate(nil) }
+        statusBar.onToggle    = { [weak self] in self?.panel.toggle() }
+        statusBar.onSettings  = { [weak self] in self?.settingsWindow.show() }
+        statusBar.onClear     = { ClipboardStore.shared.clear() }
+        statusBar.onQuit      = { NSApp.terminate(nil) }
 
         hotkey.register()
 
