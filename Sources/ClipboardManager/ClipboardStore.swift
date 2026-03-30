@@ -11,9 +11,17 @@ final class ClipboardStore: ObservableObject {
 
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = appSupport.appendingPathComponent("ClipboardManager")
+        let oldDir = appSupport.appendingPathComponent("ClipboardManager")
+        let dir = appSupport.appendingPathComponent("ClipFlow")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        saveURL = dir.appendingPathComponent("history.json")
+        // Migrate history from old name if present
+        let oldSave = oldDir.appendingPathComponent("history.json")
+        let newSave = dir.appendingPathComponent("history.json")
+        if FileManager.default.fileExists(atPath: oldSave.path),
+           !FileManager.default.fileExists(atPath: newSave.path) {
+            try? FileManager.default.copyItem(at: oldSave, to: newSave)
+        }
+        saveURL = newSave
         load()
     }
 
