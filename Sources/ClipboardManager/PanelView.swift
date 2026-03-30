@@ -2,25 +2,16 @@ import SwiftUI
 import AppKit
 
 struct PanelView: View {
-    @ObservedObject var store = ClipboardStore.shared
     @ObservedObject var state: PanelState
     var onPaste: ([ClipboardItem]) -> Void
-    var onClose: () -> Void
 
     @FocusState private var searchFocused: Bool
-
-    var filtered: [ClipboardItem] {
-        guard !state.searchText.isEmpty else { return store.items }
-        return store.items.filter {
-            $0.preview.localizedCaseInsensitiveContains(state.searchText)
-        }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             searchBar
             Divider()
-            if filtered.isEmpty {
+            if state.filteredItems.isEmpty {
                 emptyState
             } else {
                 itemList
@@ -33,9 +24,6 @@ struct PanelView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear { searchFocused = true }
-        .onChange(of: state.searchText) { _, _ in
-            state.highlightedIndex = 0
-        }
     }
 
     // MARK: - Search Bar
@@ -69,7 +57,7 @@ struct PanelView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(filtered.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(state.filteredItems.enumerated()), id: \.element.id) { index, item in
                         ItemRow(
                             item: item,
                             isHighlighted: index == state.highlightedIndex,
@@ -79,24 +67,21 @@ struct PanelView: View {
                         .contentShape(Rectangle())
                         .onTapGesture { handleTap(item: item) }
 
-                        if index < filtered.count - 1 {
-                            Divider()
-                                .padding(.leading, 40)
+                        if index < state.filteredItems.count - 1 {
+                            Divider().padding(.leading, 40)
                         }
                     }
                 }
             }
             .frame(maxHeight: 400)
             .onChange(of: state.highlightedIndex) { _, newIndex in
-                if let item = filtered[safe: newIndex] {
-                    withAnimation { proxy.scrollTo(item.id, anchor: .center) }
+                if let item = state.filteredItems[safe: newIndex] {
+                    withAnimation(.easeInOut(duration: 0.1)) {
+                        proxy.scrollTo(item.id, anchor: .center)
+                    }
                 }
             }
         }
-        .onKeyPress(keys: [.upArrow, .downArrow, .return, .escape, .space]) { press in
-            handleKey(press)
-        }
-        .focusable()
     }
 
     // MARK: - Empty State
@@ -123,7 +108,7 @@ struct PanelView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             Button("Einfügen (\(state.selectedIDs.count))") {
-                pasteSelected()
+                onPaste(state.selectedItems())
             }
             .controlSize(.small)
         }
@@ -131,61 +116,15 @@ struct PanelView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Actions
+    // MARK: - Tap Handling
 
     private func handleTap(item: ClipboardItem) {
-        let cmdHeld = NSEvent.modifierFlags.contains(.command)
-        if cmdHeld {
-            if state.selectedIDs.contains(item.id) {
-                state.selectedIDs.remove(item.id)
-            } else {
-                state.selectedIDs.insert(item.id)
-            }
+        if NSEvent.modifierFlags.contains(.command) {
+            if state.selectedIDs.contains(item.id) { state.selectedIDs.remove(item.id) }
+            else                                   { state.selectedIDs.insert(item.id) }
         } else {
             onPaste([item])
         }
-    }
-
-    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
-        switch press.key {
-        case .upArrow:
-            if state.highlightedIndex > 0 { state.highlightedIndex -= 1 }
-            return .handled
-        case .downArrow:
-            if state.highlightedIndex < filtered.count - 1 { state.highlightedIndex += 1 }
-            return .handled
-        case .return:
-            pasteHighlightedOrSelected()
-            return .handled
-        case .escape:
-            onClose()
-            return .handled
-        case .space:
-            if let item = filtered[safe: state.highlightedIndex] {
-                if state.selectedIDs.contains(item.id) {
-                    state.selectedIDs.remove(item.id)
-                } else {
-                    state.selectedIDs.insert(item.id)
-                }
-            }
-            return .handled
-        default:
-            return .ignored
-        }
-    }
-
-    private func pasteHighlightedOrSelected() {
-        if !state.selectedIDs.isEmpty {
-            pasteSelected()
-        } else if let item = filtered[safe: state.highlightedIndex] {
-            onPaste([item])
-        }
-    }
-
-    private func pasteSelected() {
-        // Preserve insertion order (order of appearance in filtered list)
-        let items = filtered.filter { state.selectedIDs.contains($0.id) }
-        onPaste(items)
     }
 }
 
@@ -203,12 +142,10 @@ struct ItemRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 16, alignment: .center)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.preview)
-                    .font(.system(size: 13))
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            Text(item.preview)
+                .font(.system(size: 13))
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(item.timeLabel)
                 .font(.caption2)
@@ -223,21 +160,16 @@ struct ItemRow: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        .background(
-            isHighlighted
-                ? Color.accentColor.opacity(0.15)
-                : Color.clear
-        )
+        .background(isHighlighted ? Color.accentColor.opacity(0.15) : Color.clear)
         .overlay(
             isSelected
-                ? RoundedRectangle(cornerRadius: 0)
-                    .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
+                ? Rectangle().stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                 : nil
         )
     }
 }
 
-// MARK: - Helpers
+// MARK: - Safe Array Subscript
 
 extension Array {
     subscript(safe index: Int) -> Element? {
