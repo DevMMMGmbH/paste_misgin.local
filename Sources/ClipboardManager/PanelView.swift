@@ -137,10 +137,20 @@ struct ItemRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: item.isImage ? "photo" : "doc.text")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .frame(width: 16, alignment: .center)
+            // Thumbnail or text icon
+            if item.isImage, let data = item.imageData, let nsImg = NSImage(data: data) {
+                Image(nsImage: nsImg)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 48, height: 36)
+                    .cornerRadius(4)
+                    .clipped()
+            } else {
+                Image(systemName: "doc.text")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16, alignment: .center)
+            }
 
             Text(item.preview)
                 .font(.system(size: 13))
