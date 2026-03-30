@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:pasteapp.io)",
+      "Bash(swift --version)",
+      "Bash(xcode-select -p)",
+      "Bash(npm --version)",
+      "Bash(chmod +x /Users/alexmisgin/Sites/paste_misgin.local/build.sh)",
+      "Bash(swift build:*)",
+      "Bash(./build.sh)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
