@@ -9,7 +9,11 @@
       "Bash(swift build:*)",
       "Bash(./build.sh)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(open /Users/alexmisgin/Sites/paste_misgin.local/ClipboardManager.app)",
+      "Bash(osascript -e 'tell application \"\"System Events\"\" to key code 36')",
+      "Bash(pkill -SIGINT ClipboardManager)",
+      "Bash(open /Applications/ClipboardManager.app)"
     ]
   }
 }
