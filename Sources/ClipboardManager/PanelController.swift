@@ -112,9 +112,13 @@ final class PanelController {
         if !texts.isEmpty {
             ClipboardMonitor.shared.ignoreNext()
             pb.setString(texts.joined(separator: "\n"), forType: .string)
-        } else if let imgData = items.first?.imageData {
+        } else if let imgData = items.first?.imageData,
+                  let nsImage = NSImage(data: imgData) {
             ClipboardMonitor.shared.ignoreNext()
-            pb.setData(imgData, forType: .tiff)
+            // Write as TIFF so any app can paste it with ⌘V
+            if let tiff = nsImage.tiffRepresentation {
+                pb.setData(tiff, forType: .tiff)
+            }
         }
 
         close()
@@ -153,9 +157,11 @@ final class ClipboardPanel: NSPanel {
         onEscape?()
     }
 
-    /// Intercept key events at the window level — before the first-responder chain.
-    override func keyDown(with event: NSEvent) {
-        if keyHandler?(event) == true { return }
-        super.keyDown(with: event)
+    /// sendEvent runs BEFORE the event reaches any first responder (including
+    /// the search text field). This is the correct place to intercept navigation
+    /// keys globally, regardless of which subview currently has focus.
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, keyHandler?(event) == true { return }
+        super.sendEvent(event)
     }
 }

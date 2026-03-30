@@ -13,7 +13,11 @@
       "Bash(open /Users/alexmisgin/Sites/paste_misgin.local/ClipboardManager.app)",
       "Bash(osascript -e 'tell application \"\"System Events\"\" to key code 36')",
       "Bash(pkill -SIGINT ClipboardManager)",
-      "Bash(open /Applications/ClipboardManager.app)"
+      "Bash(open /Applications/ClipboardManager.app)",
+      "Bash(cp -r ClipboardManager.app /Applications/)",
+      "Bash(pkill -x ClipboardManager)",
+      "Bash(rm -rf /Applications/ClipboardManager.app)",
+      "Bash(cp -r /Users/alexmisgin/Sites/paste_misgin.local/ClipboardManager.app /Applications/)"
     ]
   }
 }
