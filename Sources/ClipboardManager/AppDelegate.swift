@@ -10,8 +10,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let settingsWindow = SettingsWindowController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        checkAccessibilityPermissions()
-
         statusBar.setup()
         statusBar.onToggle    = { [weak self] in self?.panel.toggle() }
         statusBar.onSettings  = { [weak self] in self?.settingsWindow.show() }
@@ -28,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         monitor.start()
+        requestAccessibilityIfNeeded()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -39,11 +38,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.toggle()
     }
 
-    private func checkAccessibilityPermissions() {
-        let options: [String: Any] = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
-        let trusted = AXIsProcessTrustedWithOptions(options as CFDictionary)
-        if !trusted {
-            print("⚠️  ClipFlow: Bitte Zugriffsrechte in Systemeinstellungen → Datenschutz → Bedienungshilfen gewähren.")
-        }
+    // Berechtigung einmalig anfragen — nur wenn noch nicht erteilt.
+    // Nach einmaliger Genehmigung in den Systemeinstellungen kommt
+    // dieser Dialog nie wieder.
+    private func requestAccessibilityIfNeeded() {
+        guard !AXIsProcessTrusted() else { return }
+
+        // Fügt die App zur Bedienungshilfen-Liste hinzu und zeigt
+        // den Systemdialog der direkt in die Einstellungen führt.
+        let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
+        AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
 }
