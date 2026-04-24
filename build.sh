@@ -14,6 +14,13 @@ mkdir -p "$APP/Contents/Resources"
 
 cp "$BIN" "$APP/Contents/MacOS/ClipFlow"
 
+# Icon ins Bundle kopieren
+ICON_SRC="Sources/ClipboardManager/Resources/AppIcon.icns"
+if [ -f "$ICON_SRC" ]; then
+    cp "$ICON_SRC" "$APP/Contents/Resources/AppIcon.icns"
+    echo "🖼  AppIcon.icns eingebunden"
+fi
+
 cat > "$APP/Contents/Info.plist" << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -39,6 +46,8 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
     <string>ClipFlow benötigt Zugriffsrechte, um Text automatisch einzufügen.</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
 </dict>
 </plist>
 PLIST

@@ -1,35 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleName</key>
-    <string>ClipFlow</string>
-    <key>CFBundleDisplayName</key>
+    <key>CFBundleExecutable</key>
     <string>ClipFlow</string>
     <key>CFBundleIdentifier</key>
-    <string>com.misgin.clipflow</string>
+    <string>local.misgin.clipflow</string>
+    <key>CFBundleName</key>
+    <string>ClipFlow</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0</string>
-    <key>CFBundleExecutable</key>
-    <string>ClipFlow</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <!-- Kein Dock-Icon; läuft als Menüleisten-App -->
     <key>LSUIElement</key>
     <true/>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <!-- Pflichttext für Bedienungshilfen-Zugriff (⌘V-Simulation) -->
-    <key>NSAccessibilityUsageDescription</key>
-    <string>ClipFlow benötigt Zugriff auf die Bedienungshilfen, um den Einfüge-Shortcut automatisch auszulösen.</string>
-    <key>NSHumanReadableCopyright</key>
-    <string>© 2026 Alex Misgin. Alle Rechte vorbehalten.</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>NSAccessibilityUsageDescription</key>
+    <string>ClipFlow benötigt Zugriffsrechte, um Text automatisch einzufügen.</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
 </dict>
 </plist>
