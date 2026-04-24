@@ -129,31 +129,25 @@ final class PanelController {
             }
         }
 
-        // PID merken bevor das Panel geschlossen wird
-        let targetPID = previousApp?.processIdentifier
         close()
 
-        // Per postToPid direkt an den Zielprozess senden —
-        // kein Race-Condition mit der App-Aktivierung mehr
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            Self.simulateCmdV(toPID: targetPID)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            self?.previousApp?.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Self.simulateCmdV()
+            }
         }
     }
 
-    private static func simulateCmdV(toPID pid: pid_t?) {
+    private static func simulateCmdV() {
         let src = CGEventSource(stateID: .hidSystemState)
         let v = CGKeyCode(0x09)
         let dn = CGEvent(keyboardEventSource: src, virtualKey: v, keyDown: true)
         let up = CGEvent(keyboardEventSource: src, virtualKey: v, keyDown: false)
         dn?.flags = .maskCommand
         up?.flags = .maskCommand
-        if let pid {
-            dn?.postToPid(pid)
-            up?.postToPid(pid)
-        } else {
-            dn?.post(tap: .cghidEventTap)
-            up?.post(tap: .cghidEventTap)
-        }
+        dn?.post(tap: .cghidEventTap)
+        up?.post(tap: .cghidEventTap)
     }
 }
 
