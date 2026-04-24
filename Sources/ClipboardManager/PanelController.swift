@@ -6,6 +6,10 @@ final class PanelController {
     let state = PanelState()
     private var previousApp: NSRunningApplication?
 
+    private let fullHeight: CGFloat  = 480
+    private let titleHeight: CGFloat = 36
+    private let panelWidth: CGFloat  = 520
+
     func toggle() {
         panel?.isVisible == true ? close() : open()
     }
@@ -29,18 +33,20 @@ final class PanelController {
     private func buildPanel() {
         let rootView = PanelView(
             state: state,
-            onPaste: { [weak self] items in self?.paste(items: items) }
+            onPaste:    { [weak self] items in self?.paste(items: items) },
+            onClose:    { [weak self] in self?.close() },
+            onCollapse: { [weak self] collapsed in self?.setCollapsed(collapsed) }
         )
 
         let p = ClipboardPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: panelWidth, height: fullHeight),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
         p.onEscape = { [weak self] in self?.close() }
 
-        // ← Key fix: intercept navigation keys here, BEFORE SwiftUI/AppKit first-responder chain
+        // Tastatur-Events auf Panel-Ebene abfangen — vor dem SwiftUI-Responder
         p.keyHandler = { [weak self] event -> Bool in
             guard let self else { return false }
             return self.handleKey(event)
@@ -56,31 +62,35 @@ final class PanelController {
         self.panel = p
     }
 
+    // MARK: - Collapse / Expand
+
+    func setCollapsed(_ collapsed: Bool) {
+        guard let panel = panel else { return }
+        let targetHeight: CGFloat = collapsed ? titleHeight : fullHeight
+        let currentFrame = panel.frame
+        let newFrame = NSRect(
+            x: currentFrame.minX,
+            y: currentFrame.maxY - targetHeight,
+            width: panelWidth,
+            height: targetHeight
+        )
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.22
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().setFrame(newFrame, display: true)
+        }
+    }
+
     // MARK: - Key Handling
-    //
-    // Called from ClipboardPanel.keyDown — runs on main thread before the
-    // event reaches any first responder (including the search text field).
-    // Return true to consume the event, false to pass it through.
 
     private func handleKey(_ event: NSEvent) -> Bool {
         switch event.keyCode {
-        case 125: // ↓
-            state.moveDown()
-            return true
-        case 126: // ↑
-            state.moveUp()
-            return true
-        case 49:  // Space → toggle multi-select
-            state.toggleHighlighted()
-            return true
-        case 36:  // Return → paste
-            pasteSelection()
-            return true
-        case 53:  // Esc → close
-            close()
-            return true
-        default:
-            return false // let letters/delete reach the search field
+        case 125: state.moveDown();        return true  // ↓
+        case 126: state.moveUp();          return true  // ↑
+        case 49:  state.toggleHighlighted(); return true // Leertaste
+        case 36, 76: pasteSelection();     return true  // Return / Enter
+        case 53:  close();                 return true  // Esc
+        default:  return false
         }
     }
 
@@ -93,11 +103,10 @@ final class PanelController {
 
     private func centerOnScreen() {
         let screen = NSScreen.main ?? NSScreen.screens[0]
-        let w: CGFloat = 520, h: CGFloat = 480
         let f = screen.visibleFrame
-        let x = f.minX + (f.width - w) / 2
-        let y = f.minY + (f.height - h) / 2 + 60
-        panel?.setFrame(NSRect(x: x, y: y, width: w, height: h), display: false)
+        let x = f.minX + (f.width  - panelWidth)  / 2
+        let y = f.minY + (f.height - fullHeight) / 2 + 60
+        panel?.setFrame(NSRect(x: x, y: y, width: panelWidth, height: fullHeight), display: false)
     }
 
     // MARK: - Paste
@@ -115,7 +124,6 @@ final class PanelController {
         } else if let imgData = items.first?.imageData,
                   let nsImage = NSImage(data: imgData) {
             ClipboardMonitor.shared.ignoreNext()
-            // Write as TIFF so any app can paste it with ⌘V
             if let tiff = nsImage.tiffRepresentation {
                 pb.setData(tiff, forType: .tiff)
             }
@@ -147,7 +155,6 @@ final class PanelController {
 
 final class ClipboardPanel: NSPanel {
     var onEscape: (() -> Void)?
-    /// Return true to consume the event, false to pass through.
     var keyHandler: ((NSEvent) -> Bool)?
 
     override var canBecomeKey: Bool { true }
@@ -157,9 +164,7 @@ final class ClipboardPanel: NSPanel {
         onEscape?()
     }
 
-    /// sendEvent runs BEFORE the event reaches any first responder (including
-    /// the search text field). This is the correct place to intercept navigation
-    /// keys globally, regardless of which subview currently has focus.
+    // sendEvent läuft VOR jedem Responder — auch dem SwiftUI TextField
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, keyHandler?(event) == true { return }
         super.sendEvent(event)

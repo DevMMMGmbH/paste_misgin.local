@@ -4,26 +4,199 @@ import AppKit
 struct PanelView: View {
     @ObservedObject var state: PanelState
     var onPaste: ([ClipboardItem]) -> Void
+    var onClose: () -> Void
+    var onCollapse: ((Bool) -> Void)?
 
+    @State private var isCollapsed: Bool = false
+    @State private var showHelp: Bool = false
     @FocusState private var searchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            searchBar
-            Divider()
-            if state.filteredItems.isEmpty {
-                emptyState
-            } else {
-                itemList
-            }
-            if !state.selectedIDs.isEmpty {
-                Divider()
-                footer
+            titleBar
+            if !isCollapsed {
+                if showHelp {
+                    helpOverlay
+                } else {
+                    searchBar
+                    Divider()
+                    if state.filteredItems.isEmpty {
+                        emptyState
+                    } else {
+                        itemList
+                    }
+                    if !state.selectedIDs.isEmpty {
+                        Divider()
+                        footer
+                    }
+                }
             }
         }
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear { searchFocused = true }
+    }
+
+    // MARK: - Title Bar
+
+    private var titleBar: some View {
+        HStack(spacing: 0) {
+            // Drag-Anfasser
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11))
+                .foregroundStyle(.quaternary)
+                .padding(.leading, 14)
+                .frame(width: 36)
+                .help("Fenster verschieben")
+
+            Spacer()
+
+            Text("ClipFlow")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            // Hilfe-Button
+            titleBarButton(
+                icon: showHelp ? "questionmark.circle.fill" : "questionmark",
+                help: showHelp ? "Hilfe schließen" : "Tastaturkürzel"
+            ) {
+                if isCollapsed {
+                    isCollapsed = false
+                    onCollapse?(false)
+                }
+                showHelp.toggle()
+            }
+
+            // Einklapp-Button
+            titleBarButton(
+                icon: isCollapsed ? "chevron.down" : "chevron.up",
+                help: isCollapsed ? "Aufklappen" : "Einklappen"
+            ) {
+                let next = !isCollapsed
+                isCollapsed = next
+                if next { showHelp = false }
+                onCollapse?(next)
+            }
+
+            // Schließen-Button
+            titleBarButton(icon: "xmark", help: "Schließen") {
+                onClose()
+            }
+            .padding(.trailing, 8)
+        }
+        .frame(height: 36)
+    }
+
+    @ViewBuilder
+    private func titleBarButton(
+        icon: String,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            ZStack {
+                Circle()
+                    .fill(Color.primary.opacity(0.07))
+                    .frame(width: 22, height: 22)
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .frame(width: 30, height: 36)
+        .contentShape(Rectangle())
+        .help(help)
+    }
+
+    // MARK: - Hilfe-Overlay
+
+    private var helpOverlay: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header
+            HStack {
+                Image(systemName: "keyboard")
+                    .foregroundStyle(Color.accentColor)
+                Text("Tastaturkürzel & Hilfe")
+                    .font(.headline)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
+
+            Divider()
+
+            // Shortcuts
+            VStack(spacing: 0) {
+                shortcutSection(header: "Panel") {
+                    shortcutRow("⇧⌘V",        "Panel öffnen / schließen")
+                    shortcutRow("Esc",         "Panel schließen")
+                }
+
+                Divider().padding(.horizontal, 20).padding(.vertical, 6)
+
+                shortcutSection(header: "Navigation") {
+                    shortcutRow("↑  ↓",        "Eintrag navigieren")
+                    shortcutRow("↩ Return",    "Markierten Eintrag einfügen")
+                    shortcutRow("Tippen",      "Einträge filtern / suchen")
+                }
+
+                Divider().padding(.horizontal, 20).padding(.vertical, 6)
+
+                shortcutSection(header: "Mehrfachauswahl") {
+                    shortcutRow("Leertaste",   "Eintrag markieren / entmarkieren")
+                    shortcutRow("⌘ + Klick",   "Zusätzlichen Eintrag wählen")
+                    shortcutRow("↩ Return",    "Alle markierten Einträge einfügen")
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+
+            Divider().padding(.top, 14)
+
+            // Fußzeile
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(.tertiary)
+                    .font(.caption)
+                Text("Einstellungen über das Menüleisten-Icon → ⚙ Einstellungen")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func shortcutSection<Content: View>(
+        header: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(header.uppercased())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.bottom, 2)
+            content()
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func shortcutRow(_ key: String, _ desc: String) -> some View {
+        HStack(spacing: 0) {
+            Text(key)
+                .font(.system(size: 12, weight: .medium, design: .monospaced))
+                .foregroundStyle(.primary)
+                .frame(width: 110, alignment: .leading)
+            Text(desc)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 3)
     }
 
     // MARK: - Search Bar
@@ -137,7 +310,6 @@ struct ItemRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            // Thumbnail or text icon
             if item.isImage, let data = item.imageData, let nsImg = NSImage(data: data) {
                 Image(nsImage: nsImg)
                     .resizable()

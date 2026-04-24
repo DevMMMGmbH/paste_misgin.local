@@ -7,7 +7,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ClipFlow",
-            path: "Sources/ClipboardManager"
+            path: "Sources/ClipboardManager",
+            resources: [
+                .copy("Resources/AppIcon.icns")
+            ]
         )
     ]
 )
