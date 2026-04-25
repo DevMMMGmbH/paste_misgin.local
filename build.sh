@@ -52,9 +52,18 @@ cat > "$APP/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
+# Signierung: stabiles Dev-Zertifikat bevorzugen (Bedienungshilfen-Berechtigung bleibt erhalten),
+# Fallback auf Ad-hoc (erfordert einmalige Neu-Erteilung nach jedem Build).
+if security find-identity -v -p codesigning | grep -q "ClipFlow Dev"; then
+    codesign --force --deep --sign "ClipFlow Dev" "$APP" 2>/dev/null
+    echo "🔏 Signiert mit 'ClipFlow Dev' (Bedienungshilfen-Berechtigung bleibt bestehen)"
+else
+    codesign --force --deep --sign - "$APP" 2>/dev/null || true
+    echo "🔏 Ad-hoc signiert"
+    echo "   💡 Tipp: Führe ./setup_dev_cert.sh aus, damit die Berechtigung nach"
+    echo "      jedem Build erhalten bleibt."
+fi
+
 echo ""
-echo "✅ Fertig! Starte mit:"
-echo "   open ClipFlow.app"
-echo ""
-echo "⚠️  Beim ersten Start: Systemeinstellungen → Datenschutz & Sicherheit"
-echo "   → Bedienungshilfen → ClipFlow aktivieren"
+echo "✅ Fertig! Installieren und starten:"
+echo "   pkill -x ClipFlow; cp -r ClipFlow.app /Applications/ && open /Applications/ClipFlow.app"
