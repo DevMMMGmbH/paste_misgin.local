@@ -3,3 +3,6 @@
 *.xcworkspace/
 .DS_Store
 ClipboardManager.app/
+ClipFlow.app/
+*.dmg
+.claude/
