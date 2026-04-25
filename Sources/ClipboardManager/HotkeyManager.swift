@@ -19,25 +19,40 @@ final class HotkeyManager {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
 
-    /// Registers ⌃⌘V as the global panel toggle.
+    /// Registriert den Hotkey aus den Settings (Standard: ⌃⌘V).
     func register() {
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
-        InstallEventHandler(
-            GetApplicationEventTarget(),
-            hotkeyEventHandler,
-            1,
-            &eventType,
-            nil,
-            &eventHandlerRef
-        )
+        let keyCode  = Settings.shared.hotkeyKeyCode
+        let modifiers = Settings.shared.hotkeyModifiers
+        register(keyCode: keyCode, modifiers: modifiers)
+    }
+
+    /// Registriert einen beliebigen Hotkey (keyCode = kVK_*, modifiers = Carbon-Flags).
+    func register(keyCode: Int, modifiers: Int) {
+        // Alten Hotkey abmelden, Handler aber nur einmal installieren
+        if let ref = hotKeyRef {
+            UnregisterEventHotKey(ref)
+            hotKeyRef = nil
+        }
+
+        if eventHandlerRef == nil {
+            var eventType = EventTypeSpec(
+                eventClass: OSType(kEventClassKeyboard),
+                eventKind: UInt32(kEventHotKeyPressed)
+            )
+            InstallEventHandler(
+                GetApplicationEventTarget(),
+                hotkeyEventHandler,
+                1,
+                &eventType,
+                nil,
+                &eventHandlerRef
+            )
+        }
 
         let hotKeyID = EventHotKeyID(signature: 0x434C_504D, id: 1) // 'CLPM'
         RegisterEventHotKey(
-            UInt32(kVK_ANSI_V),           // V
-            UInt32(controlKey | cmdKey),   // ⌃⌘
+            UInt32(keyCode),
+            UInt32(modifiers),
             hotKeyID,
             GetApplicationEventTarget(),
             0,
@@ -46,7 +61,7 @@ final class HotkeyManager {
     }
 
     func unregister() {
-        if let ref = hotKeyRef { UnregisterEventHotKey(ref) }
-        if let ref = eventHandlerRef { RemoveEventHandler(ref) }
+        if let ref = hotKeyRef   { UnregisterEventHotKey(ref); hotKeyRef = nil }
+        if let ref = eventHandlerRef { RemoveEventHandler(ref); eventHandlerRef = nil }
     }
 }

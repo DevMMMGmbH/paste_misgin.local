@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = ClipboardMonitor.shared
@@ -8,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let panel = PanelController()
     private let statusBar = StatusBarController()
     private let settingsWindow = SettingsWindowController()
+    private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusBar.setup()
@@ -17,6 +19,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar.onQuit      = { NSApp.terminate(nil) }
 
         hotkey.register()
+
+        // Hotkey neu registrieren wenn der Nutzer ihn in den Einstellungen ändert
+        settings.$hotkeyKeyCode
+            .combineLatest(settings.$hotkeyModifiers)
+            .dropFirst()
+            .sink { [weak self] keyCode, modifiers in
+                self?.hotkey.register(keyCode: keyCode, modifiers: modifiers)
+            }
+            .store(in: &cancellables)
 
         NotificationCenter.default.addObserver(
             self,
@@ -40,7 +51,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func requestAccessibilityIfNeeded() {
         guard !AXIsProcessTrusted() else { return }
-        // Zeigt den System-Dialog der direkt in Bedienungshilfen führt.
         let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
         AXIsProcessTrustedWithOptions(options as CFDictionary)
     }
