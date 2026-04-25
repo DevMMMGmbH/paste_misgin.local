@@ -108,16 +108,15 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
 PLIST
 
 # ---------------------------------------------------------------------------
-# 3. Codesignierung
-#    "ClipFlow Dev"-Zertifikat bevorzugen (stabiler → Berechtigung bleibt
-#    nach Updates bestehen). Fallback auf Ad-hoc.
+# 3. Codesignierung — für Verteilung immer Ad-hoc (--sign -)
+#    Grund: Ein selbst-signiertes Zertifikat (z.B. "ClipFlow Dev") das
+#    nicht von Apple stammt, lässt Gatekeeper aggressiver reagieren als
+#    bei gar keiner Signatur. Ad-hoc-signierte Apps können Nutzer einfach
+#    per Rechtsklick → Öffnen starten, oder einmalig per:
+#      xattr -cr /Applications/ClipFlow.app
 # ---------------------------------------------------------------------------
-echo "🔏  Codesignierung …"
-if security find-identity -v -p codesigning | grep -q "ClipFlow Dev"; then
-    codesign --force --deep --sign "ClipFlow Dev" "${BUNDLE}" && echo "   ✓  Signiert mit 'ClipFlow Dev'."
-else
-    codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Ad-hoc signiert." || echo "   ⚠️  codesign nicht verfügbar."
-fi
+echo "🔏  Ad-hoc Codesignierung (für Verteilung) …"
+codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Ad-hoc signiert." || echo "   ⚠️  codesign nicht verfügbar."
 
 # ---------------------------------------------------------------------------
 # 4. DMG erstellen
