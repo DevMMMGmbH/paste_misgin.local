@@ -31,7 +31,7 @@ final class StatusBarController {
     private func showMenu() {
         let menu = NSMenu()
         menu.addItem(
-            withTitle: "Panel öffnen  ⇧⌘V",
+            withTitle: "Panel öffnen  ⌃⌘V",
             action: #selector(openPanel),
             keyEquivalent: ""
         ).target = self

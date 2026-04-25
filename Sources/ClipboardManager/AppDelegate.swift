@@ -38,14 +38,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.toggle()
     }
 
-    // Berechtigung einmalig anfragen — nur wenn noch nicht erteilt.
-    // Nach einmaliger Genehmigung in den Systemeinstellungen kommt
-    // dieser Dialog nie wieder.
     private func requestAccessibilityIfNeeded() {
         guard !AXIsProcessTrusted() else { return }
-
-        // Fügt die App zur Bedienungshilfen-Liste hinzu und zeigt
-        // den Systemdialog der direkt in die Einstellungen führt.
+        // Zeigt den System-Dialog der direkt in Bedienungshilfen führt.
         let options = [kAXTrustedCheckOptionPrompt.takeRetainedValue() as String: true]
         AXIsProcessTrustedWithOptions(options as CFDictionary)
     }

@@ -108,15 +108,24 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
 PLIST
 
 # ---------------------------------------------------------------------------
-# 3. Codesignierung — für Verteilung immer Ad-hoc (--sign -)
-#    Grund: Ein selbst-signiertes Zertifikat (z.B. "ClipFlow Dev") das
-#    nicht von Apple stammt, lässt Gatekeeper aggressiver reagieren als
-#    bei gar keiner Signatur. Ad-hoc-signierte Apps können Nutzer einfach
-#    per Rechtsklick → Öffnen starten, oder einmalig per:
-#      xattr -cr /Applications/ClipFlow.app
+# 3. Codesignierung — stabiles "ClipFlow Dev" Zertifikat bevorzugen.
+#    Fester Hash → TCC-Bedienungshilfen-Berechtigung bleibt über alle
+#    Builds hinweg persistent. Nutzer muss Berechtigung nur einmalig
+#    vergeben — auch nach künftigen DMG-Updates.
+#    Einmalige Installation: xattr -cr /Applications/ClipFlow.app
 # ---------------------------------------------------------------------------
-echo "🔏  Ad-hoc Codesignierung (für Verteilung) …"
-codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Ad-hoc signiert." || echo "   ⚠️  codesign nicht verfügbar."
+if security find-identity -v -p codesigning | grep -q "ClipFlow Dev"; then
+    echo "🔏  Signiere mit 'ClipFlow Dev' (stabile TCC-Berechtigung) …"
+    codesign --force --deep --sign "ClipFlow Dev" "${BUNDLE}" \
+        && echo "   ✓  Mit 'ClipFlow Dev' signiert." \
+        || echo "   ⚠️  Signierung fehlgeschlagen."
+else
+    echo "🔏  'ClipFlow Dev' nicht gefunden — Ad-hoc Fallback …"
+    echo "   💡 Tipp: Einmalig ./setup_dev_cert.sh ausführen für persistente Berechtigung."
+    codesign --force --deep --sign - "${BUNDLE}" \
+        && echo "   ✓  Ad-hoc signiert." \
+        || echo "   ⚠️  codesign nicht verfügbar."
+fi
 
 # ---------------------------------------------------------------------------
 # 4. DMG erstellen
@@ -147,11 +156,12 @@ rm -rf "$TMP_DIR"
 echo ""
 echo "✅  Fertig!"
 echo "   DMG:  ${DMG_PATH}"
-echo "   App:  ${BUNDLE}"
 echo ""
-echo "   Zum Installieren: DMG öffnen → ClipFlow in den Applications-Ordner ziehen."
+echo "📋  Einmalige Installation für Empfänger:"
+echo "   1. DMG öffnen → ClipFlow in den Programme-Ordner ziehen"
+echo "   2. Im Terminal einmalig ausführen:"
+echo "        xattr -cr /Applications/ClipFlow.app"
+echo "   3. ClipFlow starten → Bedienungshilfen-Berechtigung erteilen"
+echo "   4. Fertig — Berechtigung bleibt auch nach künftigen Updates bestehen!"
 echo ""
-echo "⚠️  Gatekeeper-Hinweis für Empfänger:"
-echo "   Da die App nicht von Apple notarisiert ist, erscheint beim ersten Start"
-echo "   eine Warnung. Lösung: Rechtsklick auf ClipFlow.app → 'Öffnen' → 'Trotzdem öffnen'."
-echo "   (Oder: Systemeinstellungen → Datenschutz & Sicherheit → 'Trotzdem öffnen')"
+echo "   Hotkey: ⌃⌘V  |  Navigation: ↑↓  |  Auswählen: Leertaste  |  Einfügen: Enter"

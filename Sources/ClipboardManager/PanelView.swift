@@ -131,7 +131,7 @@ struct PanelView: View {
             // Shortcuts
             VStack(spacing: 0) {
                 shortcutSection(header: "Panel") {
-                    shortcutRow("⇧⌘V",        "Panel öffnen / schließen")
+                    shortcutRow("⌃⌘V",        "Panel öffnen / schließen")
                     shortcutRow("Esc",         "Panel schließen")
                 }
 

@@ -19,7 +19,7 @@ final class HotkeyManager {
     private var hotKeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
 
-    /// Registers ⇧⌘V as the global panel toggle.
+    /// Registers ⌃⌘V as the global panel toggle.
     func register() {
         var eventType = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
@@ -37,7 +37,7 @@ final class HotkeyManager {
         let hotKeyID = EventHotKeyID(signature: 0x434C_504D, id: 1) // 'CLPM'
         RegisterEventHotKey(
             UInt32(kVK_ANSI_V),           // V
-            UInt32(shiftKey | cmdKey),     // ⇧⌘
+            UInt32(controlKey | cmdKey),   // ⌃⌘
             hotKeyID,
             GetApplicationEventTarget(),
             0,
