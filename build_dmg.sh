@@ -14,7 +14,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VERSION="1.0"
 APP_NAME="ClipFlow"
-BUNDLE_ID="com.misgin.clipflow"
+BUNDLE_ID="local.misgin.clipflow"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
 BUNDLE="${SCRIPT_DIR}/${APP_NAME}.app"
