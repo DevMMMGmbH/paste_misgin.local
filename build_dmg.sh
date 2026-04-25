@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION="1.0"
+VERSION="1.1"
 APP_NAME="ClipFlow"
 BUNDLE_ID="local.misgin.clipflow"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
@@ -83,6 +83,8 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Alexander Misgin. Alle Rechte vorbehalten.</string>
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>
@@ -106,12 +108,16 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
 PLIST
 
 # ---------------------------------------------------------------------------
-# 3. Ad-hoc Codesignierung
-#    Gibt der App eine stabile Identität → macOS merkt sich die
-#    Bedienungshilfen-Berechtigung dauerhaft (kein erneuter Dialog nach Neustart)
+# 3. Codesignierung
+#    "ClipFlow Dev"-Zertifikat bevorzugen (stabiler → Berechtigung bleibt
+#    nach Updates bestehen). Fallback auf Ad-hoc.
 # ---------------------------------------------------------------------------
-echo "🔏  Ad-hoc Codesignierung …"
-codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Signiert." || echo "   ⚠️  codesign nicht verfügbar – Berechtigung wird ggf. nicht gespeichert."
+echo "🔏  Codesignierung …"
+if security find-identity -v -p codesigning | grep -q "ClipFlow Dev"; then
+    codesign --force --deep --sign "ClipFlow Dev" "${BUNDLE}" && echo "   ✓  Signiert mit 'ClipFlow Dev'."
+else
+    codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Ad-hoc signiert." || echo "   ⚠️  codesign nicht verfügbar."
+fi
 
 # ---------------------------------------------------------------------------
 # 4. DMG erstellen

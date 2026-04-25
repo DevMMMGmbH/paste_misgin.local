@@ -107,7 +107,7 @@ private struct AboutTab: View {
                 Text("ClipFlow")
                     .font(.system(size: 22, weight: .bold))
 
-                Text("Version 1.0")
+                Text("Version 1.1")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
