@@ -236,6 +236,7 @@ struct PanelView: View {
                             isHighlighted: index == state.highlightedIndex,
                             isSelected: state.selectedIDs.contains(item.id)
                         )
+                        .equatable()
                         .id(item.id)
                         .contentShape(Rectangle())
                         .onTapGesture { handleTap(item: item) }
@@ -303,10 +304,16 @@ struct PanelView: View {
 
 // MARK: - Item Row
 
-struct ItemRow: View {
+struct ItemRow: View, Equatable {
     let item: ClipboardItem
     let isHighlighted: Bool
     let isSelected: Bool
+
+    static func == (lhs: ItemRow, rhs: ItemRow) -> Bool {
+        lhs.item.id == rhs.item.id &&
+        lhs.isHighlighted == rhs.isHighlighted &&
+        lhs.isSelected == rhs.isSelected
+    }
 
     var body: some View {
         HStack(spacing: 10) {

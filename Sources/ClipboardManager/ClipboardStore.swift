@@ -62,8 +62,12 @@ final class ClipboardStore: ObservableObject {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(items) {
-            try? data.write(to: saveURL)
+        let snapshot = items
+        let url = saveURL
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONEncoder().encode(snapshot) {
+                try? data.write(to: url, options: .atomic)
+            }
         }
     }
 
