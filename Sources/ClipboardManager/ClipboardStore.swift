@@ -36,6 +36,13 @@ final class ClipboardStore: ObservableObject {
         save()
     }
 
+    func moveToTop(id: UUID) {
+        guard let idx = items.firstIndex(where: { $0.id == id }), idx != 0 else { return }
+        let item = items.remove(at: idx)
+        items.insert(item, at: 0)
+        save()
+    }
+
     func remove(id: UUID) {
         items.removeAll { $0.id == id }
         save()

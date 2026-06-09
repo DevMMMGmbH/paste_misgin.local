@@ -121,11 +121,18 @@ final class PanelController {
         if !texts.isEmpty {
             ClipboardMonitor.shared.ignoreNext()
             pb.setString(texts.joined(separator: "\n"), forType: .string)
+            // move each pasted item to top so history reflects last used
+            for item in items.reversed() {
+                ClipboardStore.shared.moveToTop(id: item.id)
+            }
         } else if let imgData = items.first?.imageData,
                   let nsImage = NSImage(data: imgData) {
             ClipboardMonitor.shared.ignoreNext()
             if let tiff = nsImage.tiffRepresentation {
                 pb.setData(tiff, forType: .tiff)
+            }
+            if let first = items.first {
+                ClipboardStore.shared.moveToTop(id: first.id)
             }
         }
 

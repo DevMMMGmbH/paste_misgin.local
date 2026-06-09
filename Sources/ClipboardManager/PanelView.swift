@@ -219,6 +219,19 @@ struct PanelView: View {
                 }
                 .buttonStyle(.plain)
             }
+            Button {
+                let lorem = ClipboardItem(text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.", imageData: nil)
+                ClipboardStore.shared.add(lorem)
+            } label: {
+                Text("Lorem")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .help("Lorem Ipsum einfügen")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
