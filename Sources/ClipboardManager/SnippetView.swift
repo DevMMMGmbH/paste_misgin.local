@@ -185,6 +185,100 @@ struct SnippetRow: View {
     }
 }
 
+// MARK: - Autocomplete Field
+
+struct AutocompleteField: View {
+    let label: String
+    let placeholder: String
+    let suggestions: [String]
+    @Binding var text: String
+    /// Wenn true: Komma-getrennte Tags — Autocomplete gilt nur für das letzte Token
+    var isTagMode: Bool = false
+
+    @State private var showSuggestions = false
+    @FocusState private var focused: Bool
+
+    private var filtered: [String] {
+        let query = isTagMode ? currentToken : text
+        guard !query.isEmpty else { return suggestions }
+        return suggestions.filter { $0.lowercased().hasPrefix(query.lowercased()) && $0 != query }
+    }
+
+    /// Das Token das gerade getippt wird (letztes Element nach dem letzten Komma)
+    private var currentToken: String {
+        let parts = text.split(separator: ",", omittingEmptySubsequences: false)
+        return parts.last.map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 0) {
+                TextField(placeholder, text: $text)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .padding(7)
+                    .focused($focused)
+                    .onChange(of: text) { _, _ in showSuggestions = focused && !filtered.isEmpty }
+                    .onChange(of: focused) { _, isFocused in
+                        showSuggestions = isFocused && !filtered.isEmpty
+                    }
+
+                if showSuggestions && !filtered.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(filtered.prefix(5), id: \.self) { suggestion in
+                            Button {
+                                apply(suggestion)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: isTagMode ? "tag" : "folder")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                    Text(suggestion)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .background(Color.accentColor.opacity(0.001)) // tappable area
+                            .onHover { hovered in
+                                // highlight on hover handled by buttonStyle
+                            }
+                        }
+                    }
+                }
+            }
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(focused ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
+            )
+            .animation(.easeInOut(duration: 0.12), value: showSuggestions)
+        }
+    }
+
+    private func apply(_ suggestion: String) {
+        if isTagMode {
+            // Alle vorherigen Tags behalten, letztes Token ersetzen
+            var parts = text.split(separator: ",", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            if !parts.isEmpty { parts[parts.count - 1] = suggestion }
+            text = parts.joined(separator: ", ") + ", "
+        } else {
+            text = suggestion
+        }
+        showSuggestions = false
+    }
+}
+
 // MARK: - Add / Edit Overlay
 
 struct AddSnippetOverlay: View {
@@ -199,7 +293,17 @@ struct AddSnippetOverlay: View {
     @State private var project = ""
     @FocusState private var titleFocused: Bool
 
+    @ObservedObject private var store = SnippetStore.shared
+
     var isEditing: Bool { existing != nil }
+
+    private var allProjects: [String] {
+        Array(Set(store.snippets.map(\.project).filter { !$0.isEmpty })).sorted()
+    }
+
+    private var allTags: [String] {
+        Array(Set(store.snippets.flatMap(\.tags))).sorted()
+    }
 
     var body: some View {
         ZStack {
@@ -226,22 +330,59 @@ struct AddSnippetOverlay: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 10) {
-                    field(label: "Titel", placeholder: "z.B. SSH Produktiv-Server") {
-                        TextField("", text: $title)
+                    // Titel
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Titel")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        TextField("z.B. SSH Produktiv-Server", text: $title)
                             .focused($titleFocused)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                            .padding(7)
+                            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1), lineWidth: 1))
                     }
-                    field(label: "Inhalt", placeholder: "ssh user@1.2.3.4 -p 22") {
-                        TextEditor(text: $content)
-                            .font(.system(size: 13, design: .monospaced))
-                            .frame(minHeight: 60, maxHeight: 120)
-                            .scrollContentBackground(.hidden)
+
+                    // Inhalt
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Inhalt")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                        ZStack(alignment: .topLeading) {
+                            if content.isEmpty {
+                                Text("ssh user@1.2.3.4 -p 22")
+                                    .font(.system(size: 13, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                                    .padding(8)
+                                    .allowsHitTesting(false)
+                            }
+                            TextEditor(text: $content)
+                                .font(.system(size: 13, design: .monospaced))
+                                .frame(minHeight: 60, maxHeight: 120)
+                                .scrollContentBackground(.hidden)
+                                .padding(4)
+                        }
+                        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1), lineWidth: 1))
                     }
-                    field(label: "Projekt", placeholder: "z.B. misgin.local") {
-                        TextField("", text: $project)
-                    }
-                    field(label: "Tags", placeholder: "ssh, server, prod  (kommagetrennt)") {
-                        TextField("", text: $tags)
-                    }
+
+                    // Projekt mit Autocomplete
+                    AutocompleteField(
+                        label: "Projekt",
+                        placeholder: "z.B. misgin.local",
+                        suggestions: allProjects,
+                        text: $project
+                    )
+
+                    // Tags mit Autocomplete
+                    AutocompleteField(
+                        label: "Tags",
+                        placeholder: "ssh, server, prod  (kommagetrennt)",
+                        suggestions: allTags,
+                        text: $tags,
+                        isTagMode: true
+                    )
                 }
                 .padding(16)
 
@@ -271,28 +412,6 @@ struct AddSnippetOverlay: View {
                     titleFocused = true
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func field<F: View>(label: String, placeholder: String, @ViewBuilder field: () -> F) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            ZStack(alignment: .topLeading) {
-                if content.isEmpty && label == "Inhalt" {
-                    Text(placeholder)
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .padding(8)
-                        .allowsHitTesting(false)
-                }
-                field()
-                    .padding(label == "Inhalt" ? 4 : 7)
-            }
-            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1), lineWidth: 1))
         }
     }
 
