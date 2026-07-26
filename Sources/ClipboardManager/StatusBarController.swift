@@ -30,8 +30,9 @@ final class StatusBarController {
 
     private func showMenu() {
         let menu = NSMenu()
+        let hotkey = Shortcut.display(Settings.shared.hotkeyKeyCode, Settings.shared.hotkeyModifiers)
         menu.addItem(
-            withTitle: "Panel öffnen  ⇧⌘V",
+            withTitle: "Panel öffnen  \(hotkey)",
             action: #selector(openPanel),
             keyEquivalent: ""
         ).target = self

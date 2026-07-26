@@ -1,14 +1,19 @@
 import SwiftUI
 import AppKit
 
+enum PanelTab { case history, snippets }
+
 struct PanelView: View {
     @ObservedObject var state: PanelState
     var onPaste: ([ClipboardItem]) -> Void
+    var onSnippetPaste: (String) -> Void
     var onClose: () -> Void
     var onCollapse: ((Bool) -> Void)?
 
     @State private var isCollapsed: Bool = false
     @State private var showHelp: Bool = false
+    @State private var activeTab: PanelTab = .history
+    @State private var saveAsSnippetItem: ClipboardItem? = nil
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -18,16 +23,22 @@ struct PanelView: View {
                 if showHelp {
                     helpOverlay
                 } else {
-                    searchBar
+                    tabPicker
                     Divider()
-                    if state.filteredItems.isEmpty {
-                        emptyState
-                    } else {
-                        itemList
-                    }
-                    if !state.selectedIDs.isEmpty {
+                    if activeTab == .history {
+                        searchBar
                         Divider()
-                        footer
+                        if state.filteredItems.isEmpty {
+                            emptyState
+                        } else {
+                            itemList
+                        }
+                        if !state.selectedIDs.isEmpty {
+                            Divider()
+                            footer
+                        }
+                    } else {
+                        SnippetView(onPaste: onSnippetPaste)
                     }
                 }
             }
@@ -35,6 +46,52 @@ struct PanelView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear { searchFocused = true }
+        .overlay {
+            if let item = saveAsSnippetItem, let text = item.text {
+                AddSnippetOverlay(
+                    isPresented: Binding(
+                        get: { saveAsSnippetItem != nil },
+                        set: { if !$0 { saveAsSnippetItem = nil } }
+                    ),
+                    existing: nil,
+                    prefillContent: text
+                ) { snippet in
+                    SnippetStore.shared.add(snippet)
+                    saveAsSnippetItem = nil
+                }
+            }
+        }
+    }
+
+    // MARK: - Tab Picker
+
+    private var tabPicker: some View {
+        HStack(spacing: 4) {
+            tabButton("Verlauf", tab: .history, icon: "clock")
+            tabButton("Snippets", tab: .snippets, icon: "bookmark")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+
+    private func tabButton(_ label: String, tab: PanelTab, icon: String) -> some View {
+        Button {
+            activeTab = tab
+        } label: {
+            Label(label, systemImage: icon)
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity)
+                .background(
+                    activeTab == tab
+                        ? Color.accentColor.opacity(0.15)
+                        : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 7)
+                )
+                .foregroundStyle(activeTab == tab ? Color.accentColor : Color.secondary)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Title Bar
@@ -131,7 +188,7 @@ struct PanelView: View {
             // Shortcuts
             VStack(spacing: 0) {
                 shortcutSection(header: "Panel") {
-                    shortcutRow("⇧⌘V",        "Panel öffnen / schließen")
+                    shortcutRow(Shortcut.display(Settings.shared.hotkeyKeyCode, Settings.shared.hotkeyModifiers), "Panel öffnen / schließen")
                     shortcutRow("Esc",         "Panel schließen")
                 }
 
@@ -219,6 +276,19 @@ struct PanelView: View {
                 }
                 .buttonStyle(.plain)
             }
+            Button {
+                let lorem = ClipboardItem(text: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.", imageData: nil)
+                ClipboardStore.shared.add(lorem)
+            } label: {
+                Text("Lorem")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.07), in: RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+            .help("Lorem Ipsum einfügen")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
@@ -234,8 +304,10 @@ struct PanelView: View {
                         ItemRow(
                             item: item,
                             isHighlighted: index == state.highlightedIndex,
-                            isSelected: state.selectedIDs.contains(item.id)
+                            isSelected: state.selectedIDs.contains(item.id),
+                            onSaveAsSnippet: item.isText ? { saveAsSnippetItem = item } : nil
                         )
+                        .equatable()
                         .id(item.id)
                         .contentShape(Rectangle())
                         .onTapGesture { handleTap(item: item) }
@@ -303,10 +375,19 @@ struct PanelView: View {
 
 // MARK: - Item Row
 
-struct ItemRow: View {
+struct ItemRow: View, Equatable {
     let item: ClipboardItem
     let isHighlighted: Bool
     let isSelected: Bool
+    var onSaveAsSnippet: (() -> Void)? = nil
+
+    static func == (lhs: ItemRow, rhs: ItemRow) -> Bool {
+        lhs.item.id == rhs.item.id &&
+        lhs.isHighlighted == rhs.isHighlighted &&
+        lhs.isSelected == rhs.isSelected
+    }
+
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -329,6 +410,16 @@ struct ItemRow: View {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            if isHovered, item.isText, let onSave = onSaveAsSnippet {
+                Button(action: onSave) {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Als Snippet speichern")
+            }
+
             Text(item.timeLabel)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
@@ -348,6 +439,7 @@ struct ItemRow: View {
                 ? Rectangle().stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                 : nil
         )
+        .onHover { isHovered = $0 }
     }
 }
 

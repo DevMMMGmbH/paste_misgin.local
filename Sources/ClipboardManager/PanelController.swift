@@ -33,9 +33,10 @@ final class PanelController {
     private func buildPanel() {
         let rootView = PanelView(
             state: state,
-            onPaste:    { [weak self] items in self?.paste(items: items) },
-            onClose:    { [weak self] in self?.close() },
-            onCollapse: { [weak self] collapsed in self?.setCollapsed(collapsed) }
+            onPaste:        { [weak self] items in self?.paste(items: items) },
+            onSnippetPaste: { [weak self] text in self?.pasteText(text) },
+            onClose:        { [weak self] in self?.close() },
+            onCollapse:     { [weak self] collapsed in self?.setCollapsed(collapsed) }
         )
 
         let p = ClipboardPanel(
@@ -121,16 +122,37 @@ final class PanelController {
         if !texts.isEmpty {
             ClipboardMonitor.shared.ignoreNext()
             pb.setString(texts.joined(separator: "\n"), forType: .string)
+            // move each pasted item to top so history reflects last used
+            for item in items.reversed() {
+                ClipboardStore.shared.moveToTop(id: item.id)
+            }
         } else if let imgData = items.first?.imageData,
                   let nsImage = NSImage(data: imgData) {
             ClipboardMonitor.shared.ignoreNext()
             if let tiff = nsImage.tiffRepresentation {
                 pb.setData(tiff, forType: .tiff)
             }
+            if let first = items.first {
+                ClipboardStore.shared.moveToTop(id: first.id)
+            }
         }
 
         close()
 
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            self?.previousApp?.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Self.simulateCmdV()
+            }
+        }
+    }
+
+    func pasteText(_ text: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        ClipboardMonitor.shared.ignoreNext()
+        pb.setString(text, forType: .string)
+        close()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             self?.previousApp?.activate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -164,9 +186,14 @@ final class ClipboardPanel: NSPanel {
         onEscape?()
     }
 
-    // sendEvent läuft VOR jedem Responder — auch dem SwiftUI TextField
+    // sendEvent läuft VOR jedem Responder — auch dem SwiftUI TextField.
+    // Wenn ein Textfeld fokussiert ist, alle Events direkt durchlassen (Paste, Enter etc.)
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown, keyHandler?(event) == true { return }
+        if event.type == .keyDown {
+            let responder = firstResponder
+            let isTextField = responder is NSTextView || responder is NSTextField
+            if !isTextField, keyHandler?(event) == true { return }
+        }
         super.sendEvent(event)
     }
 }

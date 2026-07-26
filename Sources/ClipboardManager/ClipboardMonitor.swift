@@ -65,7 +65,7 @@ final class ClipboardMonitor {
                 ClipboardStore.shared.add(ClipboardItem(text: text, imageData: nil))
             }
         } else if Settings.shared.saveImages {
-            // Try common image formats in order of preference
+            // Read image data on main thread (pasteboard access), then process in background
             let imageTypes: [NSPasteboard.PasteboardType] = [
                 .tiff,
                 NSPasteboard.PasteboardType("public.png"),
@@ -73,10 +73,13 @@ final class ClipboardMonitor {
                 NSPasteboard.PasteboardType("com.apple.pict"),
             ]
             for type in imageTypes {
-                if let data = pb.data(forType: type),
-                   let thumb = Self.thumbnail(from: data) {
-                    DispatchQueue.main.async {
-                        ClipboardStore.shared.add(ClipboardItem(text: nil, imageData: thumb))
+                if let data = pb.data(forType: type) {
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        if let thumb = Self.thumbnail(from: data) {
+                            DispatchQueue.main.async {
+                                ClipboardStore.shared.add(ClipboardItem(text: nil, imageData: thumb))
+                            }
+                        }
                     }
                     break
                 }

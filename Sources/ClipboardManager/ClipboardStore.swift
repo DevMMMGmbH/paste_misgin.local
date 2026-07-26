@@ -36,6 +36,13 @@ final class ClipboardStore: ObservableObject {
         save()
     }
 
+    func moveToTop(id: UUID) {
+        guard let idx = items.firstIndex(where: { $0.id == id }), idx != 0 else { return }
+        let item = items.remove(at: idx)
+        items.insert(item, at: 0)
+        save()
+    }
+
     func remove(id: UUID) {
         items.removeAll { $0.id == id }
         save()
@@ -62,8 +69,12 @@ final class ClipboardStore: ObservableObject {
     }
 
     private func save() {
-        if let data = try? JSONEncoder().encode(items) {
-            try? data.write(to: saveURL)
+        let snapshot = items
+        let url = saveURL
+        DispatchQueue.global(qos: .utility).async {
+            if let data = try? JSONEncoder().encode(snapshot) {
+                try? data.write(to: url, options: .atomic)
+            }
         }
     }
 

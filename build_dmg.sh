@@ -6,15 +6,15 @@
 #   chmod +x build_dmg.sh
 #   ./build_dmg.sh
 #
-# Ergebnis: ClipFlow-1.0.dmg im Projektverzeichnis
+# Ergebnis: ClipFlow-1.2.dmg im Projektverzeichnis
 # ---------------------------------------------------------------------------
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION="1.0"
+VERSION="1.2"
 APP_NAME="ClipFlow"
-BUNDLE_ID="com.misgin.clipflow"
+BUNDLE_ID="local.misgin.clipflow"
 DMG_NAME="${APP_NAME}-${VERSION}.dmg"
 
 BUNDLE="${SCRIPT_DIR}/${APP_NAME}.app"
@@ -83,6 +83,8 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Alexander Misgin. Alle Rechte vorbehalten.</string>
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>
@@ -106,12 +108,24 @@ cat > "${BUNDLE}/Contents/Info.plist" << PLIST
 PLIST
 
 # ---------------------------------------------------------------------------
-# 3. Ad-hoc Codesignierung
-#    Gibt der App eine stabile Identität → macOS merkt sich die
-#    Bedienungshilfen-Berechtigung dauerhaft (kein erneuter Dialog nach Neustart)
+# 3. Codesignierung — stabiles "ClipFlow Dev" Zertifikat bevorzugen.
+#    Fester Hash → TCC-Bedienungshilfen-Berechtigung bleibt über alle
+#    Builds hinweg persistent. Nutzer muss Berechtigung nur einmalig
+#    vergeben — auch nach künftigen DMG-Updates.
+#    Einmalige Installation: xattr -cr /Applications/ClipFlow.app
 # ---------------------------------------------------------------------------
-echo "🔏  Ad-hoc Codesignierung …"
-codesign --force --deep --sign - "${BUNDLE}" && echo "   ✓  Signiert." || echo "   ⚠️  codesign nicht verfügbar – Berechtigung wird ggf. nicht gespeichert."
+if security find-identity -v -p codesigning | grep -q "ClipFlow Dev"; then
+    echo "🔏  Signiere mit 'ClipFlow Dev' (stabile TCC-Berechtigung) …"
+    codesign --force --deep --sign "ClipFlow Dev" "${BUNDLE}" \
+        && echo "   ✓  Mit 'ClipFlow Dev' signiert." \
+        || echo "   ⚠️  Signierung fehlgeschlagen."
+else
+    echo "🔏  'ClipFlow Dev' nicht gefunden — Ad-hoc Fallback …"
+    echo "   💡 Tipp: Einmalig ./setup_dev_cert.sh ausführen für persistente Berechtigung."
+    codesign --force --deep --sign - "${BUNDLE}" \
+        && echo "   ✓  Ad-hoc signiert." \
+        || echo "   ⚠️  codesign nicht verfügbar."
+fi
 
 # ---------------------------------------------------------------------------
 # 4. DMG erstellen
@@ -142,6 +156,12 @@ rm -rf "$TMP_DIR"
 echo ""
 echo "✅  Fertig!"
 echo "   DMG:  ${DMG_PATH}"
-echo "   App:  ${BUNDLE}"
 echo ""
-echo "   Zum Installieren: DMG öffnen → ClipFlow in den Applications-Ordner ziehen."
+echo "📋  Einmalige Installation für Empfänger:"
+echo "   1. DMG öffnen → ClipFlow in den Programme-Ordner ziehen"
+echo "   2. Im Terminal einmalig ausführen:"
+echo "        xattr -cr /Applications/ClipFlow.app"
+echo "   3. ClipFlow starten → Bedienungshilfen-Berechtigung erteilen"
+echo "   4. Fertig — Berechtigung bleibt auch nach künftigen Updates bestehen!"
+echo ""
+echo "   Hotkey: ⌃⌘V  |  Navigation: ↑↓  |  Auswählen: Leertaste  |  Einfügen: Enter"
