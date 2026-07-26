@@ -6,6 +6,7 @@ struct Snippet: Identifiable, Codable {
     var content: String
     var tags: [String]
     var project: String
+    var updatedAt: Date
     let createdAt: Date
 
     init(title: String, content: String, tags: [String] = [], project: String = "") {
@@ -15,6 +16,7 @@ struct Snippet: Identifiable, Codable {
         self.tags = tags
         self.project = project
         self.createdAt = Date()
+        self.updatedAt = Date()
     }
 
     var tagString: String { tags.joined(separator: ", ") }

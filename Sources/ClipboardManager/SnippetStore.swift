@@ -25,6 +25,14 @@ final class SnippetStore: ObservableObject {
         save()
     }
 
+    func update(_ snippet: Snippet) {
+        guard let idx = snippets.firstIndex(where: { $0.id == snippet.id }) else { return }
+        var updated = snippet
+        updated.updatedAt = Date()
+        snippets[idx] = updated
+        save()
+    }
+
     func filtered(by query: String) -> [Snippet] {
         query.isEmpty ? snippets : snippets.filter { $0.matches(query) }
     }

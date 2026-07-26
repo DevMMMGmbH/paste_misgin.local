@@ -13,6 +13,7 @@ struct PanelView: View {
     @State private var isCollapsed: Bool = false
     @State private var showHelp: Bool = false
     @State private var activeTab: PanelTab = .history
+    @State private var saveAsSnippetItem: ClipboardItem? = nil
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -45,6 +46,21 @@ struct PanelView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear { searchFocused = true }
+        .overlay {
+            if let item = saveAsSnippetItem, let text = item.text {
+                AddSnippetOverlay(
+                    isPresented: Binding(
+                        get: { saveAsSnippetItem != nil },
+                        set: { if !$0 { saveAsSnippetItem = nil } }
+                    ),
+                    existing: nil,
+                    prefillContent: text
+                ) { snippet in
+                    SnippetStore.shared.add(snippet)
+                    saveAsSnippetItem = nil
+                }
+            }
+        }
     }
 
     // MARK: - Tab Picker
@@ -288,7 +304,8 @@ struct PanelView: View {
                         ItemRow(
                             item: item,
                             isHighlighted: index == state.highlightedIndex,
-                            isSelected: state.selectedIDs.contains(item.id)
+                            isSelected: state.selectedIDs.contains(item.id),
+                            onSaveAsSnippet: item.isText ? { saveAsSnippetItem = item } : nil
                         )
                         .equatable()
                         .id(item.id)
@@ -362,12 +379,15 @@ struct ItemRow: View, Equatable {
     let item: ClipboardItem
     let isHighlighted: Bool
     let isSelected: Bool
+    var onSaveAsSnippet: (() -> Void)? = nil
 
     static func == (lhs: ItemRow, rhs: ItemRow) -> Bool {
         lhs.item.id == rhs.item.id &&
         lhs.isHighlighted == rhs.isHighlighted &&
         lhs.isSelected == rhs.isSelected
     }
+
+    @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 10) {
@@ -390,6 +410,16 @@ struct ItemRow: View, Equatable {
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            if isHovered, item.isText, let onSave = onSaveAsSnippet {
+                Button(action: onSave) {
+                    Image(systemName: "bookmark")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Als Snippet speichern")
+            }
+
             Text(item.timeLabel)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
@@ -409,6 +439,7 @@ struct ItemRow: View, Equatable {
                 ? Rectangle().stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                 : nil
         )
+        .onHover { isHovered = $0 }
     }
 }
 

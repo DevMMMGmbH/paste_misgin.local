@@ -186,9 +186,14 @@ final class ClipboardPanel: NSPanel {
         onEscape?()
     }
 
-    // sendEvent läuft VOR jedem Responder — auch dem SwiftUI TextField
+    // sendEvent läuft VOR jedem Responder — auch dem SwiftUI TextField.
+    // Wenn ein Textfeld fokussiert ist, alle Events direkt durchlassen (Paste, Enter etc.)
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyDown, keyHandler?(event) == true { return }
+        if event.type == .keyDown {
+            let responder = firstResponder
+            let isTextField = responder is NSTextView || responder is NSTextField
+            if !isTextField, keyHandler?(event) == true { return }
+        }
         super.sendEvent(event)
     }
 }

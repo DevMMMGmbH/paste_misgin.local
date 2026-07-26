@@ -7,6 +7,7 @@ struct SnippetView: View {
 
     @State private var searchText = ""
     @State private var showAdd = false
+    @State private var editingSnippet: Snippet? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -20,8 +21,16 @@ struct SnippetView: View {
         }
         .overlay {
             if showAdd {
-                AddSnippetOverlay(isPresented: $showAdd) { snippet in
+                AddSnippetOverlay(isPresented: $showAdd, existing: nil) { snippet in
                     store.add(snippet)
+                }
+            } else if let snippet = editingSnippet {
+                AddSnippetOverlay(isPresented: Binding(
+                    get: { editingSnippet != nil },
+                    set: { if !$0 { editingSnippet = nil } }
+                ), existing: snippet) { updated in
+                    store.update(updated)
+                    editingSnippet = nil
                 }
             }
         }
@@ -44,9 +53,7 @@ struct SnippetView: View {
                 }
                 .buttonStyle(.plain)
             }
-            Button {
-                showAdd = true
-            } label: {
+            Button { showAdd = true } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.secondary)
@@ -68,6 +75,8 @@ struct SnippetView: View {
                 ForEach(store.filtered(by: searchText)) { snippet in
                     SnippetRow(snippet: snippet) {
                         onPaste(snippet.content)
+                    } onEdit: {
+                        editingSnippet = snippet
                     } onDelete: {
                         store.remove(id: snippet.id)
                     }
@@ -88,9 +97,7 @@ struct SnippetView: View {
             Text("Keine Snippets")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Button {
-                showAdd = true
-            } label: {
+            Button { showAdd = true } label: {
                 Label("Snippet hinzufügen", systemImage: "plus")
                     .font(.system(size: 13))
             }
@@ -107,6 +114,7 @@ struct SnippetView: View {
 struct SnippetRow: View {
     let snippet: Snippet
     let onPaste: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
@@ -149,13 +157,23 @@ struct SnippetRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if isHovered {
-                Button(action: onDelete) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.red.opacity(0.7))
+                HStack(spacing: 4) {
+                    Button(action: onEdit) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Bearbeiten")
+
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.red.opacity(0.7))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Löschen")
                 }
-                .buttonStyle(.plain)
-                .help("Löschen")
             }
         }
         .padding(.horizontal, 14)
@@ -167,10 +185,12 @@ struct SnippetRow: View {
     }
 }
 
-// MARK: - Add Overlay
+// MARK: - Add / Edit Overlay
 
 struct AddSnippetOverlay: View {
     @Binding var isPresented: Bool
+    var existing: Snippet?
+    var prefillContent: String? = nil
     var onSave: (Snippet) -> Void
 
     @State private var title = ""
@@ -178,6 +198,8 @@ struct AddSnippetOverlay: View {
     @State private var tags = ""
     @State private var project = ""
     @FocusState private var titleFocused: Bool
+
+    var isEditing: Bool { existing != nil }
 
     var body: some View {
         ZStack {
@@ -187,7 +209,7 @@ struct AddSnippetOverlay: View {
             VStack(alignment: .leading, spacing: 0) {
                 // Header
                 HStack {
-                    Text("Snippet hinzufügen")
+                    Text(isEditing ? "Snippet bearbeiten" : "Snippet hinzufügen")
                         .font(.system(size: 13, weight: .semibold))
                     Spacer()
                     Button { isPresented = false } label: {
@@ -209,8 +231,10 @@ struct AddSnippetOverlay: View {
                             .focused($titleFocused)
                     }
                     field(label: "Inhalt", placeholder: "ssh user@1.2.3.4 -p 22") {
-                        TextField("", text: $content, axis: .vertical)
-                            .lineLimit(3...5)
+                        TextEditor(text: $content)
+                            .font(.system(size: 13, design: .monospaced))
+                            .frame(minHeight: 60, maxHeight: 120)
+                            .scrollContentBackground(.hidden)
                     }
                     field(label: "Projekt", placeholder: "z.B. misgin.local") {
                         TextField("", text: $project)
@@ -226,9 +250,7 @@ struct AddSnippetOverlay: View {
                 HStack {
                     Spacer()
                     Button("Abbrechen") { isPresented = false }
-                        .keyboardShortcut(.escape, modifiers: [])
-                    Button("Speichern") { save() }
-                        .keyboardShortcut(.return, modifiers: .command)
+                    Button(isEditing ? "Speichern" : "Hinzufügen") { save() }
                         .buttonStyle(.borderedProminent)
                         .disabled(title.isEmpty || content.isEmpty)
                 }
@@ -238,7 +260,17 @@ struct AddSnippetOverlay: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
             .shadow(color: .black.opacity(0.25), radius: 16, y: 4)
             .padding(24)
-            .onAppear { titleFocused = true }
+            .onAppear {
+                if let s = existing {
+                    title   = s.title
+                    content = s.content
+                    project = s.project
+                    tags    = s.tagString
+                } else {
+                    if let pre = prefillContent { content = pre }
+                    titleFocused = true
+                }
+            }
         }
     }
 
@@ -248,15 +280,19 @@ struct AddSnippetOverlay: View {
             Text(label)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
-            field()
-                .font(.system(size: 13))
-                .textFieldStyle(.plain)
-                .padding(7)
-                .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                )
+            ZStack(alignment: .topLeading) {
+                if content.isEmpty && label == "Inhalt" {
+                    Text(placeholder)
+                        .font(.system(size: 13, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .padding(8)
+                        .allowsHitTesting(false)
+                }
+                field()
+                    .padding(label == "Inhalt" ? 4 : 7)
+            }
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 6))
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.1), lineWidth: 1))
         }
     }
 
@@ -265,8 +301,16 @@ struct AddSnippetOverlay: View {
             .split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        let snippet = Snippet(title: title, content: content, tags: parsedTags, project: project)
-        onSave(snippet)
+
+        if var updated = existing {
+            updated.title   = title
+            updated.content = content
+            updated.tags    = parsedTags
+            updated.project = project
+            onSave(updated)
+        } else {
+            onSave(Snippet(title: title, content: content, tags: parsedTags, project: project))
+        }
         isPresented = false
     }
 }
