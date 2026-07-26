@@ -33,9 +33,10 @@ final class PanelController {
     private func buildPanel() {
         let rootView = PanelView(
             state: state,
-            onPaste:    { [weak self] items in self?.paste(items: items) },
-            onClose:    { [weak self] in self?.close() },
-            onCollapse: { [weak self] collapsed in self?.setCollapsed(collapsed) }
+            onPaste:        { [weak self] items in self?.paste(items: items) },
+            onSnippetPaste: { [weak self] text in self?.pasteText(text) },
+            onClose:        { [weak self] in self?.close() },
+            onCollapse:     { [weak self] collapsed in self?.setCollapsed(collapsed) }
         )
 
         let p = ClipboardPanel(
@@ -138,6 +139,20 @@ final class PanelController {
 
         close()
 
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
+            self?.previousApp?.activate()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                Self.simulateCmdV()
+            }
+        }
+    }
+
+    func pasteText(_ text: String) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        ClipboardMonitor.shared.ignoreNext()
+        pb.setString(text, forType: .string)
+        close()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in
             self?.previousApp?.activate()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {

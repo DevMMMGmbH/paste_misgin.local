@@ -1,14 +1,18 @@
 import SwiftUI
 import AppKit
 
+enum PanelTab { case history, snippets }
+
 struct PanelView: View {
     @ObservedObject var state: PanelState
     var onPaste: ([ClipboardItem]) -> Void
+    var onSnippetPaste: (String) -> Void
     var onClose: () -> Void
     var onCollapse: ((Bool) -> Void)?
 
     @State private var isCollapsed: Bool = false
     @State private var showHelp: Bool = false
+    @State private var activeTab: PanelTab = .history
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -18,16 +22,22 @@ struct PanelView: View {
                 if showHelp {
                     helpOverlay
                 } else {
-                    searchBar
+                    tabPicker
                     Divider()
-                    if state.filteredItems.isEmpty {
-                        emptyState
-                    } else {
-                        itemList
-                    }
-                    if !state.selectedIDs.isEmpty {
+                    if activeTab == .history {
+                        searchBar
                         Divider()
-                        footer
+                        if state.filteredItems.isEmpty {
+                            emptyState
+                        } else {
+                            itemList
+                        }
+                        if !state.selectedIDs.isEmpty {
+                            Divider()
+                            footer
+                        }
+                    } else {
+                        SnippetView(onPaste: onSnippetPaste)
                     }
                 }
             }
@@ -35,6 +45,37 @@ struct PanelView: View {
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onAppear { searchFocused = true }
+    }
+
+    // MARK: - Tab Picker
+
+    private var tabPicker: some View {
+        HStack(spacing: 4) {
+            tabButton("Verlauf", tab: .history, icon: "clock")
+            tabButton("Snippets", tab: .snippets, icon: "bookmark")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+    }
+
+    private func tabButton(_ label: String, tab: PanelTab, icon: String) -> some View {
+        Button {
+            activeTab = tab
+        } label: {
+            Label(label, systemImage: icon)
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity)
+                .background(
+                    activeTab == tab
+                        ? Color.accentColor.opacity(0.15)
+                        : Color.clear,
+                    in: RoundedRectangle(cornerRadius: 7)
+                )
+                .foregroundStyle(activeTab == tab ? Color.accentColor : Color.secondary)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Title Bar
