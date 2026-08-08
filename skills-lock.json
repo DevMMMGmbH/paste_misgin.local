@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "drupal-development": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "f7e2b67ef3404b2fcb98db4c6bb6d2710db277e23c1cc09f5bf20fb09eda78b6"
+    },
+    "drupal-expert": {
+      "source": "madsnorgaard/agent-resources",
+      "sourceType": "github",
+      "computedHash": "9e1eba4980c3526e525ab05a357d24e2650e119a5c13f1326f16cdc230b6e8fb"
+    },
+    "drupal-migration": {
+      "source": "madsnorgaard/agent-resources",
+      "sourceType": "github",
+      "computedHash": "d7b9ea622477b3eac574b13c8427b40b9535d3f6bb21689fe6ace702b02e9e50"
+    }
+  }
+}

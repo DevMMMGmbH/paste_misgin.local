@@ -6,3 +6,4 @@ ClipboardManager.app/
 ClipFlow.app/
 *.dmg
 .claude/
+/.agents
